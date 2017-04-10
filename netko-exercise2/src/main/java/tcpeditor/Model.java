@@ -97,7 +97,7 @@ public class Model {
 			printstream.flush();
 		} catch (IOException e) {
 			System.err.println("IO Exception");
-		} catch (NullPointerException e){
+		} catch (NullPointerException e) {
 			System.err.println("keine Nachricht");
 		}
 	}
@@ -115,8 +115,10 @@ public class Model {
 			serverSocket.close();
 			reader.close();
 			inputstream.close();
+			modelChanged();
 		} catch (Exception e) {
 
 		}
+
 	}
 }
