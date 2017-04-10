@@ -146,7 +146,7 @@ public class Model {
 			System.out.println("Send text: " + textToSend);
 			printstream.print(textToSend);
 		} catch (IOException e) {
-			System.err.println("IO Exception");
+			System.err.println("IO Exception" + e.getMessage());
 		} catch (NullPointerException e) {
 			System.err.println("keine Nachricht");
 		}
@@ -154,8 +154,10 @@ public class Model {
 
 	public void startServer() {
 
-		if (serverThread.isAlive() || serverThread != null)
+		if (serverThread != null) {
+			System.out.println("Server already started.");
 			return;
+		}
 
 		Runnable serverTask = new Runnable() {
 			@Override
@@ -172,7 +174,6 @@ public class Model {
 						}
 						System.out.println("Received Test: " + receivedText);
 						modelChanged();
-						reader.close();
 					}
 				} catch (IOException e) {
 					System.err.println("Unable to process client request");
@@ -180,7 +181,7 @@ public class Model {
 				}
 			}
 		};
-		Thread serverThread = new Thread(serverTask);
+		serverThread = new Thread(serverTask);
 		serverThread.start();
 	}
 
