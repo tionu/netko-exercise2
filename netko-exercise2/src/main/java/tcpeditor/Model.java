@@ -25,7 +25,7 @@ public class Model {
 
 	}
 
-	private static final int CLIENT_TIMEOUT_MS = 3000;
+	private static final int CLIENT_TIMEOUT_MS = 30000;
 
 	private List<ModelListener> listeners;
 	private Modus modus;
@@ -154,8 +154,10 @@ public class Model {
 
 	public void startServer() {
 
-		if (serverThread.isAlive() || serverThread != null)
+		if (serverThread != null) {
+			System.out.println("Server already started.");
 			return;
+		}
 
 		Runnable serverTask = new Runnable() {
 			@Override
@@ -180,7 +182,7 @@ public class Model {
 				}
 			}
 		};
-		Thread serverThread = new Thread(serverTask);
+		serverThread = new Thread(serverTask);
 		serverThread.start();
 	}
 
