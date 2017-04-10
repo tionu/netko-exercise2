@@ -1,17 +1,18 @@
 package tcpeditor;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Scanner;
+import java.util.concurrent.TimeoutException;
 
 public class Model {
 
@@ -24,6 +25,8 @@ public class Model {
 		public void modelChanged();
 
 	}
+
+	private static final int CLIENT_TIMEOUT_MS = 3000;
 
 	private List<ModelListener> listeners;
 	private Modus modus;
@@ -90,6 +93,61 @@ public class Model {
 	}
 
 	public void sendData() {
+		switch (modus) {
+		case SERVER:
+			sendDataAsServer();
+			break;
+		case CLIENT:
+			try {
+				receivedText = sendDataAsClient();
+			} catch (TimeoutException e) {
+				receivedText = "Error: " + e.getMessage();
+			}
+			break;
+		}
+	}
+
+	private String sendDataAsClient() throws TimeoutException {
+		try {
+			Socket socket = new Socket(url, port);
+			OutputStream output = socket.getOutputStream();
+			PrintStream printstream = new PrintStream(output, true);
+			printstream.print(textToSend);
+			socket.setSoTimeout(CLIENT_TIMEOUT_MS);
+			InputStream inputstream = socket.getInputStream();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(inputstream));
+			receivedText = "";
+
+			//
+			// Date start = new Date();
+			//
+			// while (!reader.ready()) {
+			// Thread.sleep(10);
+			// if (new Date().getTime() - start.getTime() >= CLIENT_TIMEOUT_MS)
+			// {
+			// throw new TimeoutException("timeout on waiting for response from
+			// server. No reponse within "
+			// + CLIENT_TIMEOUT_MS + "ms.");
+			// }
+			// }
+
+			while (reader.ready()) {
+				receivedText += reader.readLine() + "\n";
+			}
+
+			reader.close();
+			inputstream.close();
+			modelChanged();
+
+		} catch (IOException e) {
+			System.err.println("IO Exception");
+		} catch (NullPointerException e) {
+			System.err.println("keine Nachricht");
+		}
+		return receivedText;
+	}
+
+	private void sendDataAsServer() {
 		try {
 			OutputStream output = socket.getOutputStream();
 			PrintStream printstream = new PrintStream(output, true);
@@ -103,22 +161,36 @@ public class Model {
 	}
 
 	public void startServer() {
-		try {
-			ServerSocket serverSocket = new ServerSocket(port);
-			Socket socket = serverSocket.accept();
-			InputStream inputstream = socket.getInputStream();
-			BufferedReader reader = new BufferedReader(new InputStreamReader(inputstream));
-			receivedText = "";
-			while (reader.ready())
-				receivedText += reader.readLine() + "\n";
 
-			serverSocket.close();
-			reader.close();
-			inputstream.close();
-			modelChanged();
-		} catch (Exception e) {
+		Runnable serverTask = new Runnable() {
+			@Override
+			public void run() {
+				try {
+					ServerSocket serverSocket = new ServerSocket(port);
+					System.out.println("Waiting for clients to connect...");
+					while (true) {
+						socket = serverSocket.accept();
+						BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+						BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
 
-		}
+						receivedText = "";
+						while (reader.ready()) {
+							receivedText += reader.readLine() + "\n";
+						}
+						modelChanged();
+
+						reader.close();
+
+					}
+				} catch (IOException e) {
+					System.err.println("Unable to process client request");
+					e.printStackTrace();
+				}
+			}
+		};
+		Thread serverThread = new Thread(serverTask);
+		serverThread.start();
 
 	}
+
 }

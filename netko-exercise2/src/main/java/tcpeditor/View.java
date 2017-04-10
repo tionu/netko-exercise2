@@ -15,6 +15,7 @@ import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
+import javax.swing.WindowConstants;
 
 import tcpeditor.Model.ModelListener;
 import tcpeditor.Model.Modus;
@@ -37,6 +38,7 @@ public class View implements ModelListener{
 	public View(Model model) {
 		this.model = model;
 		frame = new JFrame("TCP/IP-Viewer");
+		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		framePanel = new JPanel(new BorderLayout());
 		clientServerComboBox = new JComboBox<>(Model.Modus.values());
 		controlPanel = new JPanel(new FlowLayout());
