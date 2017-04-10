@@ -172,7 +172,7 @@ public class Model {
 						while (reader.ready()) {
 							receivedText += reader.readLine() + "\n";
 						}
-						System.out.println("Received Test: " + receivedText);
+						System.out.println("Received Text: " + receivedText);
 						modelChanged();
 					}
 				} catch (IOException e) {
