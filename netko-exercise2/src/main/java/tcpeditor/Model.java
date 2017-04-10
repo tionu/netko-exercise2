@@ -1,15 +1,14 @@
 package tcpeditor;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -34,6 +33,7 @@ public class Model {
 	private int port;
 	private String textToSend;
 	private String receivedText;
+	Thread serverThread;
 	private Socket socket; // Dieses Attribut benötigen Sie, wenn Sie den Modus
 							// SERVER programmieren, um einen Socket,
 	// der in der Methode startServer() erstellt wurde auch in der Methode
@@ -108,41 +108,33 @@ public class Model {
 	}
 
 	private String sendDataAsClient() throws TimeoutException {
-		try {
-			Socket socket = new Socket(url, port);
+		try (Socket socket = new Socket(url, port)) {
 			OutputStream output = socket.getOutputStream();
 			PrintStream printstream = new PrintStream(output, true);
 			printstream.print(textToSend);
-			socket.setSoTimeout(CLIENT_TIMEOUT_MS);
 			InputStream inputstream = socket.getInputStream();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(inputstream));
 			receivedText = "";
 
-			//
-			// Date start = new Date();
-			//
-			// while (!reader.ready()) {
-			// Thread.sleep(10);
-			// if (new Date().getTime() - start.getTime() >= CLIENT_TIMEOUT_MS)
-			// {
-			// throw new TimeoutException("timeout on waiting for response from
-			// server. No reponse within "
-			// + CLIENT_TIMEOUT_MS + "ms.");
-			// }
-			// }
-
+			Date start = new Date();
+			while (!reader.ready()) {
+				Thread.sleep(10);
+				if (new Date().getTime() - start.getTime() >= CLIENT_TIMEOUT_MS) {
+					throw new TimeoutException("timeout on waiting for response from server. No reponse within "
+							+ CLIENT_TIMEOUT_MS + "ms.");
+				}
+			}
 			while (reader.ready()) {
 				receivedText += reader.readLine() + "\n";
 			}
-
 			reader.close();
 			inputstream.close();
 			modelChanged();
-
 		} catch (IOException e) {
 			System.err.println("IO Exception");
 		} catch (NullPointerException e) {
 			System.err.println("keine Nachricht");
+		} catch (InterruptedException ignored) {
 		}
 		return receivedText;
 	}
@@ -151,8 +143,8 @@ public class Model {
 		try {
 			OutputStream output = socket.getOutputStream();
 			PrintStream printstream = new PrintStream(output, true);
+			System.out.println("Send text: " + textToSend);
 			printstream.print(textToSend);
-			printstream.flush();
 		} catch (IOException e) {
 			System.err.println("IO Exception");
 		} catch (NullPointerException e) {
@@ -162,25 +154,25 @@ public class Model {
 
 	public void startServer() {
 
+		if (serverThread.isAlive() || serverThread != null)
+			return;
+
 		Runnable serverTask = new Runnable() {
 			@Override
 			public void run() {
-				try {
-					ServerSocket serverSocket = new ServerSocket(port);
+				try (ServerSocket serverSocket = new ServerSocket(port)) {
 					System.out.println("Waiting for clients to connect...");
 					while (true) {
 						socket = serverSocket.accept();
+						System.out.println("Client connected. Receiving text...");
 						BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-						BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-
 						receivedText = "";
 						while (reader.ready()) {
 							receivedText += reader.readLine() + "\n";
 						}
+						System.out.println("Received Test: " + receivedText);
 						modelChanged();
-
 						reader.close();
-
 					}
 				} catch (IOException e) {
 					System.err.println("Unable to process client request");
@@ -190,7 +182,6 @@ public class Model {
 		};
 		Thread serverThread = new Thread(serverTask);
 		serverThread.start();
-
 	}
 
 }
